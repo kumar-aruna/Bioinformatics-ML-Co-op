@@ -149,7 +149,7 @@ print(f"Test RMSE: {rmse}")
 
 
 
-### Authors: Aruna Kumar
+### Author: Aruna Kumar
 
   
 
