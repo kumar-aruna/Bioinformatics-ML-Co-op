@@ -1,7 +1,7 @@
 # Ensure necessary libraries are installed and loaded
 if (!requireNamespace("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
-
+# Installing GenomicFeatures and S4Vectors from Bioconductor
 BiocManager::install(c("GenomicFeatures", "S4Vectors"))
 library(GenomicFeatures)
 library(S4Vectors)
@@ -12,12 +12,12 @@ library(S4Vectors)
 # GENCODE: provides comprehensive gene annotations. 
 # For this task, we are looking for GTF file for the comprehensive gene annotation
 # of the primary assembly (which includes chromosomes and scaffolding) from release 45.
-# Note: Release 45 is the specific versionof the gene annotation data provided by the GENCODE project.
+# Note: Release 45 is the specific version of the gene annotation data provided by the GENCODE project.
 
 
 # Step 01: We are downloading gene annotation from the GENCODE database
 
-# Timeout to ensure large files have time to download:
+# Setting a longer timeout because we're about to download a big file.
 options(timeout = max(1000, getOption("timeout")))
 
 # Function to download the gtf file from given url
@@ -33,13 +33,10 @@ download_gtf <- function(url, destination) {
   
 # Example usage with the corrected URL (removed the leading space)
 gencode_url <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_45/gencode.v45.primary_assembly.annotation.gtf.gz"
-destination_path <- "/Users/aruna/gencode.v45.annotation.gtf.gz"
+gtf_path <- "Bioinformatics-ML-Co-op/gencode.v45.annotation.gtf.gz"
 
 # Call the corrected function
-download_gtf(gencode_url, destination_path)
-
-
-
+download_gtf(gencode_url, gtf_path)
 
 
 
@@ -49,27 +46,25 @@ download_gtf(gencode_url, destination_path)
 # The TxDb object is a database that stores transcript-level annotations, allowing 
 # for efficient querying and analysis.
 
-# First we need to download all requred package
+# First we need to download all required package
 
-if (!requireNamespace("BiocManager", quietly = TRUE))
+if (!requireNamespace("BiocManager", quietly = TRUE)) {
   install.packages("BiocManager")
-BiocManager::install("GenomicFeatures")
-
+}
+BiocManager::install("GenomicFeatures", force = TRUE)
 library(GenomicFeatures)
-
-# Adjust the file path as necessary
-gtf_path <- "/Users/aruna/ gencode.v45.annotation.gtf.gz"
-
-# Now, create the TxDb object
-txdb <- makeTxDbFromGFF(file = gtf_path, format = "gtf")
-print(txdb) # We converted the GTF file into a TxDb object, because TxDb object provides a structured and efficient 
-# formate for accessing gene and transcript annotations to do downsteem analysis.
+exists("makeTxDbFromGFF", where = asNamespace("GenomicFeatures"))
+# Creating a TxDb object from the GTF file
+txdb <- GenomicFeatures::makeTxDbFromGFF(file = gtf_path, format = "gtf")
+print(txdb)# Let's see what we've got!
+# We converted the GTF file into a TxDb object, because TxDb object provides a structured and efficient 
+# format for accessing gene and transcript annotations to do downsteem analysis.
 
 # Result: > print(txdb)
 # TxDb object:
   # Db type: TxDb
   # Supporting package: GenomicFeatures
-  # Data source: /Users/aruna/ gencode.v45.annotation.gtf.gz
+  # Data source: Bioinformatics-ML-Co-op/gencode.v45.annotation.gtf.gz
   # Organism: NA
   # Taxonomy ID: NA
   # miRBase build ID: NA
@@ -83,8 +78,7 @@ print(txdb) # We converted the GTF file into a TxDb object, because TxDb object 
 
 
 
-# Step 3: Build an S4 Object Containing All Genes and Transcripts
-library(GenomicRanges)
+# Step 3: Build an S4 Object Containing All Genes and Transcripts, because it's neat
 genes <- genes(txdb)
 transcripts <- transcriptsBy(txdb, by = "gene")
 
@@ -94,7 +88,7 @@ print(gene_transcript_association)
 
 
 # Step 4: Compute Statistics and Make a Histogram
-
+library(GenomicRanges)
 # Extract genes and transcripts
 
 genes <- genes(txdb)
@@ -104,26 +98,37 @@ transcripts_by_gene <- transcriptsBy(txdb, by = "gene")
 
 
 # Define the S4 class for gene-transcript association
-setClass("GeneTranscriptAssociation", 
-         slots = c(genes = "GRanges", transcripts = "CompressedList"))
+# Organizing Genes and Transcripts Neatly
+setClass("GeneTranscriptAssociation",
+         slots = c(genes = "GRanges", transcripts = "GRangesList")) # It is like a folder where it organize the 
+# the list of transcript and genes neatly
+gene_transcript_association <- new("GeneTranscriptAssociation", 
+                                   genes = genes, 
+                                   transcripts = transcripts_by_gene)
+print(gene_transcript_association)# Checking output
 
-# Instantiate the S4 object
-gene_transcript_association <- new("GeneTranscriptAssociation", genes = genes, transcripts = transcripts_by_gene)
+# Counting in each folder
+transcript_counts <- sapply(gene_transcript_association@transcripts, length)
+print(transcript_counts)
 
-# Compute transcript counts per gene
-transcript_counts <- elementLengths(gene_transcript_association@transcripts)
-
-# Calculate and display mean, minimum, and maximum number of transcripts per gene
+# Calculate the mean, minimum, and maximum number of transcripts per gene
 mean_transcripts <- mean(transcript_counts)
 min_transcripts <- min(transcript_counts)
 max_transcripts <- max(transcript_counts)
+
 cat("Mean number of transcripts per gene:", mean_transcripts, "\n")
+# Mean number of transcripts per gene: 4.000395 
+
 cat("Minimum number of transcripts per gene:", min_transcripts, "\n")
+# Minimum number of transcripts per gene: 1 
+
 cat("Maximum number of transcripts per gene:", max_transcripts, "\n")
+# Maximum number of transcripts per gene: 296 
+
 
 # Generate and display a histogram of the number of transcripts per gene
 hist(transcript_counts, 
-     breaks=seq(from=min_transcript_counts, to=max_transcript_counts, by=1), 
+     breaks=seq(from=min_transcripts, to=max_transcripts, by=1), 
      main="Histogram of Transcripts Per Gene", 
      xlab="Number of Transcripts", 
      ylab="Frequency", 
